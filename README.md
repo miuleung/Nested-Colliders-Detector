@@ -53,10 +53,10 @@
 
 # Demo GIF
 
->嵌套/遮挡层级结构展示：
+>嵌套/遮挡碰撞器层级结构展示：
 ![](./GIF/gif1.gif)
 
->交互展示：
+>交互展示（左上角黑色Cube为LayerMask物体；Log为点击输出）：
 ![](./GIF/gif2.gif)
 
 # Roadmap
