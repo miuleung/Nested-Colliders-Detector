@@ -53,9 +53,14 @@
 
 # Demo GIF
 
+>层级结构展示：
+![](./GIF/gif1.gif)
 
+>交互展示：
+![](./GIF/gif2.gif)
 
 # Roadmap
 
 1.性能优化
+
 2.添加Drag等事件扩展
