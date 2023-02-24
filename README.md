@@ -21,11 +21,11 @@
     {
         base.Awake();
         OnPointerClickCallback = new UnityEvent<PointerEventData>();
-        OnPointerClickCallback.AddListener(OnPointerClick_);
+        OnPointerClickCallback.AddListener(_OnPointerClick);
         OnPointerEnterCallback = new UnityEvent<PointerEventData>();
-        OnPointerEnterCallback.AddListener(OnPointerEnter_);
+        OnPointerEnterCallback.AddListener(_OnPointerEnter);
         OnPointerExitCallback = new UnityEvent<PointerEventData>();
-        OnPointerExitCallback.AddListener(OnPointerExit_);
+        OnPointerExitCallback.AddListener(_OnPointerExit);
         BaseLayerMask = ~(1 << 10);
     }
 ```
@@ -35,17 +35,17 @@
 > ÊÂ¼þÂß¼­
 
 ```csharp
-    private void OnPointerClick_(PointerEventData eventData)
+    private void _OnPointerClick(PointerEventData eventData)
     {
         //dosomthing
     }
 
-    private void OnPointerEnter_(PointerEventData eventData)
+    private void _OnPointerEnter(PointerEventData eventData)
     {
          //dosomthing
     }
 
-    private void OnPointerExit_(PointerEventData eventData)
+    private void _OnPointerExit(PointerEventData eventData)
     {
          //dosomthing
     }

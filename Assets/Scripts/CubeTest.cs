@@ -17,35 +17,35 @@ public class CubeTest : RayEventBase
     {
         base.Awake();
         OnPointerClickCallback = new UnityEvent<PointerEventData>();
-        OnPointerClickCallback.AddListener(OnPointerClick_);
+        OnPointerClickCallback.AddListener(_OnPointerClick);
         OnPointerEnterCallback = new UnityEvent<PointerEventData>();
-        OnPointerEnterCallback.AddListener(OnPointerEnter_);
+        OnPointerEnterCallback.AddListener(_OnPointerEnter);
         OnPointerExitCallback = new UnityEvent<PointerEventData>();
-        OnPointerExitCallback.AddListener(OnPointerExit_);
+        OnPointerExitCallback.AddListener(_OnPointerExit);
         hoverTipRec = HoverTipGo.GetComponent<RectTransform>();
         BaseLayerMask = ~(1 << 10);
     }
 
     private void OnDestroy()
     {
-        OnPointerClickCallback?.RemoveListener(OnPointerClick_);
-        OnPointerEnterCallback?.RemoveListener(OnPointerEnter_);
-        OnPointerExitCallback?.RemoveListener(OnPointerExit_);
+        OnPointerClickCallback?.RemoveListener(_OnPointerClick);
+        OnPointerEnterCallback?.RemoveListener(_OnPointerEnter);
+        OnPointerExitCallback?.RemoveListener(_OnPointerExit);
     }
 
-    private void OnPointerClick_(PointerEventData eventData)
+    private void _OnPointerClick(PointerEventData eventData)
     {
         Debug.Log($"{gameObject.name} OnPointerClick");
     }
 
-    private void OnPointerEnter_(PointerEventData eventData)
+    private void _OnPointerEnter(PointerEventData eventData)
     {
         HoverTipText.text = $"{gameObject.name}";
         HoverTipGo.transform.position = eventData.position + new Vector2(hoverTipRec.sizeDelta.x, hoverTipRec.sizeDelta.y);
         HoverTipGo.SetActive(true);
     }
 
-    private void OnPointerExit_(PointerEventData eventData)
+    private void _OnPointerExit(PointerEventData eventData)
     {
         HoverTipText.text = string.Empty;
         HoverTipGo.SetActive(false);
