@@ -4,13 +4,14 @@
 
 # Summary
 
-1. PC下检测，也只有PC有此需求
+1. PC下使用，也只有PC有此需求
 2. 按键C可清除控制台Log
 3. 支持LayerMask配置筛选检测碰撞器。
 
 # How to use?
 
 1.继承RayEventBase
+
 2.注册事件
 
 > 注册事件
@@ -25,7 +26,6 @@
         OnPointerEnterCallback.AddListener(OnPointerEnter_);
         OnPointerExitCallback = new UnityEvent<PointerEventData>();
         OnPointerExitCallback.AddListener(OnPointerExit_);
-        hoverTipRec = HoverTipGo.GetComponent<RectTransform>();
         BaseLayerMask = ~(1 << 10);
     }
 ```
@@ -53,7 +53,7 @@
 
 # Demo GIF
 
->层级结构展示：
+>嵌套/遮挡层级结构展示：
 ![](./GIF/gif1.gif)
 
 >交互展示：
