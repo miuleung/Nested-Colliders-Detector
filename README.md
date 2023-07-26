@@ -59,8 +59,12 @@
 >交互展示（左上角黑色Cube为LayerMask物体；Log为点击输出）：
 ![](./GIF/gif2.gif)
 
+# Reference
+
+HighlightingSystem：项目引用了高亮插件，请自行购买导入，如果没有则移除相关代码即可
+
+UniTask
+
 # Roadmap
 
-1.性能优化
-
-2.添加Drag等事件扩展
+1.解决与原生Raycast物体相互作用的问题

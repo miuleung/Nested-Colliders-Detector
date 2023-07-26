@@ -1,21 +1,29 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Events;
+using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks.Linq;
 
 [DisallowMultipleComponent]
 public class RayEventBase : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler, IPointerMoveHandler
+    , IBeginDragHandler, IDragHandler, IEndDragHandler
 {
+    public bool m_IsPriorityOnTop;
+    public bool IsPriorityOnTop { get { return m_IsPriorityOnTop; } set { m_IsPriorityOnTop = value; } }
     public UnityEvent<PointerEventData> OnPointerClickCallback;
     public UnityEvent<PointerEventData> OnPointerEnterCallback;
     public UnityEvent<PointerEventData> OnPointerExitCallback;
+
+    public UnityEvent<PointerEventData> OnBeginDragCallback;
+    public UnityEvent<PointerEventData> OnDragCallback;
+    public UnityEvent<PointerEventData> OnEndDragCallback;
 
     private int arrayLength = 50;
 
     private Ray ray;
 
-    private RaycastHit[] hitArray;
+    private RaycastHit[] curHitArray;
     private List<RaycastHit> curCheckHitList;
     private int checkHitLength;
 
@@ -29,41 +37,56 @@ public class RayEventBase : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     public LayerMask BaseLayerMask { get { return baseLayerMask; } set { baseLayerMask = value; } }
     private LayerMask baseLayerMask = ~0;
 
-    //是否本体发生交互
+    /// <summary>
+    /// 是否本体发生交互
+    /// 鼠标是否进入物体
+    /// </summary>
     public bool IsSelfInteract
     {
         get { return isSelfInteract; }
     }
     private bool isSelfInteract = false;
+    /// <summary>
+    /// 拖拽纪录物体
+    /// </summary>
+    public GameObject DragGo { get { return m_DragGo; } }
+    private GameObject m_DragGo;
+    private RayEventBase m_targetScript;
+    /// <summary>
+    /// 是否正在拖拽中
+    /// </summary>
+    public bool IsSelfDrag { get { return m_IsSelfDrag; } }
+    private bool m_IsSelfDrag;
 
     public virtual void Awake()
     {
-        hitArray = new RaycastHit[arrayLength];
+        curHitArray = new RaycastHit[arrayLength];
         hitArrayLast = new RaycastHit[arrayLength];
         moveHitArray = new RaycastHit[arrayLength];
     }
 
-    public void OnPointerClick(PointerEventData eventData)
+    #region 接口实现
+    public async void OnPointerClick(PointerEventData eventData)
     {
-        if (!MultiColliderCheck(InteractType.Click, eventData))
+        if (!await MultiColliderCheck(InteractType.Click, eventData))
         {
             return;
         }
         OnPointerClickCallback?.Invoke(eventData);
     }
 
-    public void OnPointerEnter(PointerEventData eventData)
+    public async void OnPointerEnter(PointerEventData eventData)
     {
-        if (!MultiColliderCheck(InteractType.Enter, eventData))
+        if (!await MultiColliderCheck(InteractType.Enter, eventData))
         {
             return;
         }
         OnPointerEnterCallback?.Invoke(eventData);
     }
 
-    public void OnPointerExit(PointerEventData eventData)
+    public async void OnPointerExit(PointerEventData eventData)
     {
-        if (!MultiColliderCheck(InteractType.Exit, eventData))
+        if (!await MultiColliderCheck(InteractType.Exit, eventData))
         {
             return;
         }
@@ -71,18 +94,45 @@ public class RayEventBase : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         isSelfInteract = false;
     }
 
+    public async void OnBeginDrag(PointerEventData eventData)
+    {
+        if (!await MultiColliderCheck(InteractType.BeginDrag, eventData))
+        {
+            return;
+        }
+        m_DragGo = this.gameObject;
+        m_targetScript = this.gameObject.GetComponent<RayEventBase>();
+        m_IsSelfDrag = true;
+        OnBeginDragCallback?.Invoke(eventData);
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        if (m_IsSelfDrag)
+        {
+            OnEndDragCallback?.Invoke(eventData);
+            m_DragGo = null;
+            m_targetScript = null;
+            m_IsSelfDrag = false;
+            return;
+        }
+        if (m_DragGo == null) return;
+        ExecuteEvents.Execute(m_DragGo, eventData, ExecuteEvents.endDragHandler);
+    }
+    #endregion
+
     #region Raycast
-    private bool MultiColliderCheck(InteractType interactType, PointerEventData eventData)
+    private async UniTask<bool> MultiColliderCheck(InteractType interactType, PointerEventData eventData)
     {
         checkHitLength = 0;
         switch (interactType)
         {
             case InteractType.Enter:
                 ray = eventData.enterEventCamera.ScreenPointToRay(eventData.position);
-                checkHitLength = Physics.RaycastNonAlloc(ray, hitArray, float.MaxValue, baseLayerMask.value);
+                checkHitLength = Physics.RaycastNonAlloc(ray, curHitArray, float.MaxValue, baseLayerMask.value);
                 if (checkHitLength > 0)
                 {
-                    curCheckHitList = hitArray.Take(checkHitLength).ToList();
+                    curCheckHitList = await curHitArray.ToUniTaskAsyncEnumerable().Take(checkHitLength).ToListAsync();
                     curCheckHitList.Sort((x, y) => x.distance.CompareTo(y.distance));
                     if (curCheckHitList[curCheckHitList.Count - 1].collider.gameObject != this.gameObject)
                     {
@@ -98,10 +148,10 @@ public class RayEventBase : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
                 return isSelfInteract;
             case InteractType.Click:
                 ray = eventData.pressEventCamera.ScreenPointToRay(eventData.position);
-                checkHitLength = Physics.RaycastNonAlloc(ray, hitArray, float.MaxValue, baseLayerMask.value);
+                checkHitLength = Physics.RaycastNonAlloc(ray, curHitArray, float.MaxValue, baseLayerMask.value);
                 if (checkHitLength > 0)
                 {
-                    curCheckHitList = hitArray.Take(checkHitLength).ToList();
+                    curCheckHitList = await curHitArray.ToUniTaskAsyncEnumerable().Take(checkHitLength).ToListAsync();
                     curCheckHitList.Sort((x, y) => x.distance.CompareTo(y.distance));
                     if (checkHitLength == 1 && curCheckHitList[0].collider.gameObject == this.gameObject)
                     {
@@ -116,31 +166,79 @@ public class RayEventBase : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
                     return true;
                 }
                 return false;
+            case InteractType.BeginDrag:
+                ray = eventData.pressEventCamera.ScreenPointToRay(eventData.position);
+                checkHitLength = Physics.RaycastNonAlloc(ray, curHitArray, float.MaxValue, baseLayerMask.value);
+                if (checkHitLength > 0)
+                {
+                    curCheckHitList = await curHitArray.ToUniTaskAsyncEnumerable().Take(checkHitLength).ToListAsync();
+                    curCheckHitList.Sort((x, y) => x.distance.CompareTo(y.distance));
+                    if (checkHitLength == 1 && curCheckHitList[0].collider.gameObject == this.gameObject)
+                    {
+                        var script0 = curCheckHitList[0].collider.gameObject.GetComponent<RayEventBase>();
+                        if (script0.IsSelfInteract)
+                        {
+                            return true;
+                        }
+                    }
+                    var script = curCheckHitList[curCheckHitList.Count - 1].collider.gameObject.GetComponent<RayEventBase>();
+                    if (script != null && script.gameObject != this.gameObject && script.IsSelfInteract)
+                    {
+                        m_DragGo = curCheckHitList[curCheckHitList.Count - 1].collider.gameObject;//需要记录实际发生拖拽的实例，以便EndDrag使用
+                        m_targetScript = m_DragGo.GetComponent<RayEventBase>();
+                        ExecuteEvents.Execute(curCheckHitList[curCheckHitList.Count - 1].collider.gameObject, eventData, ExecuteEvents.beginDragHandler);
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
         }
         return false;
     }
 
-    public void OnPointerMove(PointerEventData eventData)
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        if (m_DragGo == null) return;
+
+        if (m_targetScript != null && m_targetScript.m_IsSelfDrag)
+        {
+            m_targetScript.OnDragCallback?.Invoke(eventData);
+        }
+    }
+
+    public async void OnPointerMove(PointerEventData eventData)
     {
         moveHitLength = 0;
         ray = Camera.main.ScreenPointToRay(eventData.position);
         moveHitLength = Physics.RaycastNonAlloc(ray, moveHitArray, float.MaxValue, baseLayerMask.value);
         if (moveHitLength > 0)
         {
-            curMoveHitList = moveHitArray.Take(moveHitLength).ToList();
+            curMoveHitList = await moveHitArray.ToUniTaskAsyncEnumerable().Take(moveHitLength).ToListAsync();
             curMoveHitList.Sort((x, y) => x.distance.CompareTo(y.distance));
             //旧的响应退出事件
             if (moveHitLengthLast > 0)
             {
-                foreach (var item in hitArrayLast.Take(moveHitLengthLast))
+                var e = hitArrayLast.ToUniTaskAsyncEnumerable().Take(moveHitLengthLast).GetAsyncEnumerator();
+                try
                 {
-                    if (curMoveHitList[curMoveHitList.Count - 1].collider.gameObject != item.collider.gameObject)
+                    while (await e.MoveNextAsync())
                     {
-                        var script = item.collider.gameObject.GetComponent<RayEventBase>();
-                        if (script != null && script.IsSelfInteract)
+                        if (curMoveHitList[curMoveHitList.Count - 1].collider.gameObject != e.Current.collider.gameObject)
                         {
-                            ExecuteEvents.Execute(item.collider.gameObject, eventData, ExecuteEvents.pointerExitHandler);
+                            var script = e.Current.collider.gameObject.GetComponent<RayEventBase>();
+                            if (script != null && script.IsSelfInteract)
+                            {
+                                ExecuteEvents.Execute(e.Current.collider.gameObject, eventData, ExecuteEvents.pointerExitHandler);
+                            }
                         }
+                    }
+                }
+                finally
+                {
+                    if (e != null)
+                    {
+                        await e.DisposeAsync();
                     }
                 }
             }
@@ -165,12 +263,23 @@ public class RayEventBase : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         {
             if (moveHitLengthLast > 0)
             {
-                foreach (var item in hitArrayLast.Take(moveHitLengthLast))
+                var e = hitArrayLast.ToUniTaskAsyncEnumerable().Take(moveHitLengthLast).GetAsyncEnumerator();
+                try
                 {
-                    var script = item.collider.gameObject.GetComponent<RayEventBase>();
-                    if (script != null && script.IsSelfInteract)
+                    while (await e.MoveNextAsync())
                     {
-                        ExecuteEvents.Execute(item.collider.gameObject, eventData, ExecuteEvents.pointerExitHandler);
+                        var script = e.Current.collider.gameObject.GetComponent<RayEventBase>();
+                        if (script != null && script.IsSelfInteract)
+                        {
+                            ExecuteEvents.Execute(e.Current.collider.gameObject, eventData, ExecuteEvents.pointerExitHandler);
+                        }
+                    }
+                }
+                finally
+                {
+                    if (e != null)
+                    {
+                        await e.DisposeAsync();
                     }
                 }
             }

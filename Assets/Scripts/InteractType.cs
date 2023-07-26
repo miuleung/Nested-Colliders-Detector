@@ -2,5 +2,6 @@ public enum InteractType
 {
     Enter,
     Exit,
-    Click
+    Click,
+    BeginDrag,
 }
